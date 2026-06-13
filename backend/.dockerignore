@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*.egg-info
+.venv
+venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Data (volumen montado)
+data/
+
+# Tests
+tests/
+.pytest_cache
+.coverage
+htmlcov
+
+# Docker
+Dockerfile
+Dockerfile.production
+.dockerignore
+
+# Temp
+*.tmp
+*.bak
+*.log

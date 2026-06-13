@@ -1,0 +1,81 @@
+{{ cabecera }}
+{{ ciudad }}, {{ fecha }}
+
+Señor
+{{ juzgado }}
+E. S. D.
+
+Referencia: {{ radicado or 'PROCESO VERBAL DE MAYOR CUANTÍA' }}
+Demandante: {{ demandante }}
+Demandado: {{ demandado }}
+
+{{ tipo_proceso | default('PROCESO VERBAL DE MAYOR CUANTÍA') }}
+
+{{ nombre_apoderado }}, {{ tipo_apoderado | default('abogado en ejercicio') }}, identificado con {{ documento_apoderado }}, {{ tipo_tarjeta | default('Tarjeta Profesional') }} No. {{ tarjeta_profesional }}, actuando como {{ calidad | default('apoderado judicial') }} del señor(ra) {{ demandante }}, {{ identificacion_demandante }}, respetuosamente presento {{ tipo_accion | default('demanda verbal de mayor cuantía') }} contra {{ demandado }}, {{ identificacion_demandado }}, para que previo el trámite del proceso {{ tipo_proceso }}, se hagan las siguientes:
+
+
+I. PRETENSIONES
+
+{% for pretension in pretensiones %}
+{{ loop.index }}. {{ pretension }}
+{% endfor %}
+
+
+II. HECHOS
+
+{% for hecho in hechos %}
+{{ loop.index }}. {{ hecho }}
+{% endfor %}
+
+
+III. FUNDAMENTOS DE DERECHO
+
+{% for fundamento in fundamentos_derecho %}
+{{ fundamento }}
+{% endfor %}
+
+
+IV. COMPETENCIA
+
+{{ competencia | default('Es usted competente, señor Juez, por la naturaleza del asunto, por el domicilio de las partes y por la cuantía.') }}
+
+
+V. CUANTÍA
+
+{{ cuantia | default('La cuantía se estima en la suma que se determinará en el curso del proceso.') }}
+
+
+VI. PRUEBAS
+
+{% for prueba in pruebas %}
+{{ loop.index }}. {{ prueba }}
+{% endfor %}
+
+
+VII. ANEXOS
+
+{% for anexo in anexos %}
+{{ loop.index }}. {{ anexo }}
+{% endfor %}
+
+
+VIII. NOTIFICACIONES
+
+El demandante recibirá notificaciones en:
+Dirección: {{ direccion_demandante }}
+Correo: {{ correo_demandante }}
+Teléfono: {{ telefono_demandante }}
+
+El demandado recibirá notificaciones en:
+Dirección: {{ direccion_demandado }}
+Correo: {{ correo_demandado }}
+Teléfono: {{ telefono_demandado }}
+
+Del señor Juez,
+
+Atentamente,
+
+{{ firma_nombre }}
+{{ tipo_apoderado | default('Abogado') }}
+T.P. No. {{ tarjeta_profesional }}
+{{ correo_apoderado }}

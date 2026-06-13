@@ -1,0 +1,59 @@
+{{ cabecera }}
+{{ ciudad }}, {{ fecha }}
+
+Señor(ra)
+{{ autoridad_destinataria }}
+{{ entidad_destinataria }}
+E. S. D.
+
+Referencia: DERECHO DE PETICIÓN
+Solicitante: {{ demandante }}
+
+{{ nombre_apoderado }}, {{ tipo_apoderado | default('abogado en ejercicio') }}, identificado con {{ documento_apoderado }} y T.P. No. {{ tarjeta_profesional }}, actuando como {{ calidad | default('apoderado judicial') }} del señor(ra) {{ demandante }}, con fundamento en el artículo 23 de la Constitución Política de Colombia y la Ley 1755 de 2015, respetuosamente presento solicitud de {{ tipo_peticion }} ante su despacho, en los siguientes términos:
+
+
+I. FUNDAMENTO CONSTITUCIONAL Y LEGAL
+
+El artículo 23 de la Constitución Política consagra el derecho fundamental de petición, desarrollado por la Ley 1755 de 2015, que establece el derecho de toda persona a presentar peticiones respetuosas ante las autoridades y a obtener pronta resolución.
+
+
+II. HECHOS
+
+{% for hecho in hechos %}
+{{ loop.index }}. {{ hecho }}
+{% endfor %}
+
+
+III. SOLICITUD
+
+{% for solicitud in solicitudes %}
+{{ loop.index }}. {{ solicitud }}
+{% endfor %}
+
+
+IV. FUNDAMENTOS JURÍDICOS
+
+{{ fundamentos_juridicos }}
+
+
+V. DOCUMENTOS ANEXOS
+
+{% for anexo in anexos %}
+{{ loop.index }}. {{ anexo }}
+{% endfor %}
+
+
+VI. NOTIFICACIONES
+
+Dirección: {{ direccion_demandante }}
+Correo: {{ correo_demandante }}
+Teléfono: {{ telefono_demandante }}
+
+Del señor(ra) funcionario(ra),
+
+Atentamente,
+
+{{ firma_nombre }}
+{{ tipo_apoderado | default('Abogado') }}
+T.P. No. {{ tarjeta_profesional }}
+{{ correo_apoderado }}

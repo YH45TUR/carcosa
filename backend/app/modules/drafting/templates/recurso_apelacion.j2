@@ -1,0 +1,59 @@
+{{ cabecera }}
+{{ ciudad }}, {{ fecha }}
+
+Señor
+{{ juzgado_origen }}
+E. S. D.
+
+Referencia: RECURSO DE APELACIÓN
+Proceso: {{ tipo_proceso }}
+Radicado: {{ radicado }}
+Demandante: {{ demandante }}
+Demandado: {{ demandado }}
+
+{{ nombre_apoderado }}, {{ tipo_apoderado | default('abogado en ejercicio') }}, identificado con {{ documento_apoderado }} y T.P. No. {{ tarjeta_profesional }}, actuando como {{ calidad | default('apoderado judicial') }} de {{ parte_recurrente }}, dentro del proceso de la referencia, respetuosamente interpongo RECURSO DE APELACIÓN contra {{ tipo_providencia | default('la sentencia') }} de fecha {{ fecha_providencia }}, notificada el {{ fecha_notificacion }}, para ante el {{ tribunal_superior }}, con fundamento en las siguientes:
+
+
+I. OPORTUNIDAD
+
+{{ oportunidad | default('El recurso se interpone dentro del término legal, esto es, dentro de los ({{ termino_recurso }}) días siguientes a la notificación de la providencia recurrida.') }}
+
+
+II. PROVIDENCIA RECURRIDA
+
+Se recurre {{ tipo_providencia }} proferida el {{ fecha_providencia }} por el {{ juzgado_origen }}.
+
+
+III. CARGOS DE INCONFORMIDAD
+
+{% for cargo in cargos_inconformidad %}
+{{ loop.index }}. {{ cargo }}
+{% endfor %}
+
+
+IV. PRETENSIONES DEL RECURRENTE
+
+{% for pretension in pretensiones %}
+{{ loop.index }}. {{ pretension }}
+{% endfor %}
+
+
+V. SUSTENTACIÓN
+
+{{ sustentacion }}
+
+
+VI. NOTIFICACIONES
+
+Dirección: {{ direccion_apoderado }}
+Correo: {{ correo_apoderado }}
+Teléfono: {{ telefono_apoderado }}
+
+Del señor Juez,
+
+Atentamente,
+
+{{ firma_nombre }}
+{{ tipo_apoderado | default('Abogado') }}
+T.P. No. {{ tarjeta_profesional }}
+{{ correo_apoderado }}
