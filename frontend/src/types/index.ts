@@ -43,6 +43,26 @@ export interface CaseCreate {
   description?: string
 }
 
+export type DocumentStatus = 'pending' | 'processing' | 'done' | 'error'
+
+export interface Document {
+  id: number
+  case_id: number
+  filename: string
+  file_type: string
+  file_size: number
+  processing_status: DocumentStatus
+  has_text: boolean
+  has_metadata: boolean
+  created_at: string
+  job_id?: string
+}
+
+export interface DocumentUploadResult extends Document {
+  job_id?: string
+  message: string
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
