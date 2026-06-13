@@ -1,13 +1,16 @@
 // Sistema Legal CO - Protected Route
+import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { Loader2 } from 'lucide-react'
 
 export function ProtectedRoute() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, checkAuth } = useAuth()
 
-  // Verificar autenticación al montar
-  // En un caso real, esto se haría con useEffect
+  // Verificar autenticacion al montar el componente
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
 
   if (isLoading) {
     return (

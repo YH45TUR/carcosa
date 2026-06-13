@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     # Startup
     print(f"Iniciando {settings.app_name}...")
     init_db()
-    print("✓ Base de datos inicializada")
+    print("[OK] Base de datos inicializada")
     yield
     # Shutdown
     print("Apagando sistema...")
