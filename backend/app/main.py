@@ -5,6 +5,12 @@ Punto de entrada principal de la API.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
+
+import os
 
 from app.config import settings
 from app.db.database import init_db
@@ -35,12 +41,25 @@ async def lifespan(app: FastAPI):
     print("Apagando sistema...")
 
 
+# Rate limiter por IP (deshabilitado en testing para no romper tests)
+_is_testing = os.environ.get("TESTING", "").lower() == "true"
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[f"{settings.rate_limit_default_per_minute}/minute"] if not _is_testing else ["1000/minute"],
+    enabled=not _is_testing
+)
+
 app = FastAPI(
     title=settings.app_name,
     description="Sistema integral de gestión legal con IA para abogados colombianos",
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Rate limiting handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS
 app.add_middleware(
@@ -50,6 +69,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting middleware (va despues de CORS)
+app.add_middleware(SlowAPIMiddleware)
 
 # Routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Autenticación"])

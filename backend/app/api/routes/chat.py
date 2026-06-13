@@ -2,16 +2,29 @@
 Sistema Legal CO - Chat
 WebSocket chat con memoria conversacional y orquestación de módulos.
 """
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException
+import os
+
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
 from datetime import datetime
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
+from app.config import settings
 from app.db.database import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, decode_token
 from app.models.user import User
+
+# Rate limiter para chat
+_is_testing = os.environ.get("TESTING", "").lower() == "true"
+chat_limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[f"{settings.rate_limit_chat_per_minute}/minute"] if not _is_testing else ["1000/minute"],
+    enabled=not _is_testing
+)
 
 router = APIRouter()
 
@@ -63,12 +76,30 @@ manager = ConnectionManager()
 @router.websocket("/ws")
 async def websocket_chat(
     websocket: WebSocket,
-    token: str
+    token: str = ""
 ):
-    """WebSocket para chat en tiempo real."""
-    # Nota: En producción, validar token aquí también
-    # Por simplicidad, usamos un user_id simulado
-    user_id = 1
+    """WebSocket para chat en tiempo real.
+    
+    Requiere token JWT como query parameter.
+    Ejemplo: ws://localhost:8000/api/chat/ws?token=eyJhbGci...
+    """
+    # Validar token JWT
+    if not token:
+        await websocket.close(code=4001, reason="Token de autenticacion requerido")
+        return
+    
+    try:
+        payload = decode_token(token)
+        username: str = payload.get("sub")
+        if username is None:
+            await websocket.close(code=4001, reason="Token invalido")
+            return
+        # Nota: en produccion, obtener user_id real desde la DB
+        # Por ahora usamos un hash simple del username
+        user_id = abs(hash(username)) % 1000000
+    except Exception:
+        await websocket.close(code=4001, reason="Token expirado o invalido")
+        return
     
     await manager.connect(websocket, user_id)
     
@@ -93,16 +124,18 @@ async def websocket_chat(
 # === REST ENDPOINTS ===
 
 @router.post("/message", response_model=ChatResponse)
+@chat_limiter.limit(f"{settings.rate_limit_chat_per_minute}/minute")
 async def send_chat_message(
-    request: ChatRequest,
+    request: Request,
+    chat_request: ChatRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Enviar mensaje de chat vía REST."""
     response = await process_message(
-        request.message,
-        request.case_id,
-        request.module
+        chat_request.message,
+        chat_request.case_id,
+        chat_request.module
     )
     return response
 

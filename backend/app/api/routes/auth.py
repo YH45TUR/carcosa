@@ -2,12 +2,17 @@
 Sistema Legal CO - Autenticación
 Registro, login, refresh tokens y gestión de sesiones.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
+from app.config import settings
 from app.db.database import get_db
 from app.core.security import (
     verify_password,
@@ -18,13 +23,23 @@ from app.core.security import (
 )
 from app.models.user import User, UserRole, Token, TokenData
 
+# Rate limiter especifico para auth (mas restrictivo)
+_is_testing = os.environ.get("TESTING", "").lower() == "true"
+auth_limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[f"{settings.rate_limit_login_per_minute}/minute"] if not _is_testing else ["1000/minute"],
+    enabled=not _is_testing
+)
+
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 @router.post("/register", response_model=Token)
+@auth_limiter.limit(f"{settings.rate_limit_login_per_minute}/minute")
 async def register(
+    request: Request,
     username: str,
     email: str,
     password: str,
@@ -76,7 +91,9 @@ async def register(
 
 
 @router.post("/login", response_model=Token)
+@auth_limiter.limit(f"{settings.rate_limit_login_per_minute}/minute")
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
@@ -107,7 +124,9 @@ async def login(
 
 
 @router.post("/refresh", response_model=Token)
+@auth_limiter.limit(f"{settings.rate_limit_login_per_minute}/minute")
 async def refresh_token(
+    request: Request,
     authorization: str = Header(None),
     db: Session = Depends(get_db)
 ):

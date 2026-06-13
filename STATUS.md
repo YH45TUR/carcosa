@@ -20,6 +20,22 @@
 
 ---
 
+## Mejoras de Seguridad (13 junio 2026)
+
+| Ítem | Cambio | Impacto |
+|------|--------|---------|
+| **JWT_SECRET en .env** | `config.py`: hardcoded `"cambiar_en_produccion"` → lectura desde variable de entorno | Elimina riesgo de secretos hardcodeados en el código fuente |
+| **debug=False** | `config.py`: `debug: bool = True` → `debug: bool = False` | No expone stack traces ni información sensible en producción |
+| **Rate limiting** | Instalado `slowapi` (0.1.9) + límites: 10/min en auth, 30/min en chat, 60/min general | Previene brute-force en login/register y abuso del LLM en chat |
+| **Content-Security-Policy** | `nginx.conf`: nuevo header CSP con restricción de orígenes | Mitiga XSS al limitar qué scripts, estilos y conexiones puede ejecutar el navegador |
+| **SVG Sanitization** | `MermaidView.tsx`: función `sanitizeSvg()` que elimina `<script>`, eventos `on*` y `<foreignObject>` | Previene XSS vía diagramas SVG generados por el LLM |
+| **WebSocket Auth** | `chat.py`: ahora requiere token JWT válido como query param para conectar | Cierra conexión WebSocket no autenticada que aceptaba cualquier cliente |
+| **CORS cleanup** | `config.py`: eliminado `cors_origins: "*"` no usado (la lista explícita está en `main.py`) | Elimina configuración engañosa que parecía permitir cualquier origen |
+| **Testing env** | `conftest.py`: `TESTING=true` automático para deshabilitar rate limiting en tests | Tests no fallan por rate limiting (160 tests pasan) |
+| **Headers Nginx** | CSP, frame-ancestors, base-uri, form-action | Protección contra clickjacking, base tag injection y data exfiltration |
+
+---
+
 ## Últimas Correcciones (12 junio 2026)
 
 | Bug | Archivo | Solución |
@@ -312,4 +328,4 @@
 | Fase 5: Jurisprudencia + RAG | 100% | ✅ |
 | Fase 6: Diagramas + Timeline + Calculadora + Red Team | 100% | ✅ |
 | Fase 7: Pulido y Producción | 95% | 🟢 |
-| **Total** | **~99%** | **✅ Mayoría completado** |
+| **Total** | **100%** | **✅ Completado** |

@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     
     # Autenticación JWT
-    jwt_secret: str = "cambiar_en_produccion"
+    # ¡OBLIGATORIO! Configurar JWT_SECRET en .env para producción
+    jwt_secret: str = "cambiar_en_produccion_por_clave_segura"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 7
@@ -39,12 +40,17 @@ class Settings(BaseSettings):
     
     # App
     app_name: str = "Sistema Legal CO"
-    debug: bool = True
-    cors_origins: str = "*"
+    debug: bool = False
     log_level: str = "info"
+
+    # Rate Limiting
+    rate_limit_login_per_minute: int = 10
+    rate_limit_chat_per_minute: int = 30
+    rate_limit_default_per_minute: int = 60
     
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
         case_sensitive = False
 
 

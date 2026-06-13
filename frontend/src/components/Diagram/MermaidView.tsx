@@ -1,5 +1,5 @@
 // Sistema Legal CO - Mermaid Diagram View
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import mermaid from 'mermaid'
 import { Download, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 
@@ -108,6 +108,44 @@ export function MermaidView({ chart, title }: Props) {
     )
   }
 
+  const sanitizeSvg = useCallback((svgContent: string): string => {
+    if (!svgContent) return ''
+    try {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(svgContent, 'image/svg+xml')
+      const svgEl = doc.querySelector('svg')
+      if (!svgEl) return svgContent
+
+      // Eliminar cualquier tag <script>
+      const scripts = svgEl.querySelectorAll('script')
+      scripts.forEach(s => s.remove())
+
+      // Eliminar atributos de evento (onclick, onerror, onload, etc.)
+      const allElements = svgEl.querySelectorAll('*')
+      allElements.forEach(el => {
+        const attrs = el.attributes
+        const toRemove: string[] = []
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].name.startsWith('on')) {
+            toRemove.push(attrs[i].name)
+          }
+        }
+        toRemove.forEach(attr => el.removeAttribute(attr))
+      })
+
+      // Eliminar tags <foreignObject> que pueden contener HTML embebido
+      const foreignObjects = svgEl.querySelectorAll('foreignObject')
+      foreignObjects.forEach(fo => fo.remove())
+
+      // Serializar de vuelta
+      const serializer = new XMLSerializer()
+      return serializer.serializeToString(svgEl)
+    } catch {
+      // Si falla el parseo, devolvemos el original (mermaid ya genero SVG valido)
+      return svgContent
+    }
+  }, [])
+
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden ${
       isFullscreen ? 'fixed inset-4 z-50 shadow-2xl' : ''
@@ -165,7 +203,7 @@ export function MermaidView({ chart, title }: Props) {
         ref={containerRef}
         className="p-6 overflow-auto flex justify-center"
         style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-        dangerouslySetInnerHTML={{ __html: svg }}
+        dangerouslySetInnerHTML={{ __html: sanitizeSvg(svg) }}
       />
     </div>
   )
