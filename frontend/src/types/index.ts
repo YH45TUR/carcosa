@@ -1,4 +1,4 @@
-// Sistema Legal CO - TypeScript Types
+// Tipos centrales del Sistema Legal CO
 
 export interface User {
   id: number
@@ -6,90 +6,58 @@ export interface User {
   email: string
   role: 'admin' | 'abogado' | 'asistente'
   is_active: boolean
-  created_at: string
 }
 
-export interface Token {
+export interface AuthTokens {
   access_token: string
   refresh_token: string
   token_type: string
 }
 
-export interface Case {
-  id: number
-  radicado: string | null
-  cliente: string
-  demandado: string | null
-  area: LegalArea
-  status: CaseStatus
-  juzgado: string | null
-  cuantia: number | null
-  description: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type LegalArea = 
-  | 'civil' 
-  | 'penal' 
-  | 'laboral' 
-  | 'administrativo' 
-  | 'constitucional' 
-  | 'familia' 
-  | 'comercial'
+export type LegalArea =
+  | 'civil' | 'penal' | 'laboral' | 'administrativo'
+  | 'constitucional' | 'familia' | 'comercial' | 'otro'
 
 export type CaseStatus = 'activo' | 'archivado' | 'cerrado'
 
-export interface CaseDocument {
+export interface Case {
   id: number
-  case_id: number
-  filename: string
-  original_filename: string
-  file_path: string
-  file_type: string
-  file_size: number
-  extracted_text: string | null
-  extracted_metadata: string | null
+  radicado?: string
+  cliente: string
+  demandado?: string
+  area: LegalArea
+  status: CaseStatus
+  juzgado?: string
+  cuantia?: number
+  description?: string
   created_at: string
 }
 
-export interface CaseVersion {
-  id: number
-  case_id: number
-  document_type: string
-  version_number: number
-  content: string
-  file_path: string | null
-  created_at: string
+export interface CaseCreate {
+  cliente: string
+  demandado?: string
+  area: LegalArea
+  radicado?: string
+  juzgado?: string
+  cuantia?: number
+  description?: string
 }
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
-  timestamp: string
   module?: string
-  data?: any
+  data?: Record<string, unknown>
+  timestamp: Date
 }
 
-export interface CaseTerm {
-  id: number
-  case_id: number
-  tipo: string
-  norma: string
-  fecha_inicio: string
-  fecha_fin: string
-  dias_habiles: number
-  code: string
-  days_remaining: number | null
-  is_expired: boolean
+export interface ChatResponse {
+  message: string
+  module: string
+  data?: Record<string, unknown>
 }
 
-export interface TimelineEvent {
-  id: number
-  case_id: number
-  fecha: string
-  titulo: string
-  descripcion: string | null
-  documento_id: number | null
-  tipo: string
+export interface ApiError {
+  detail: string
+  status?: number
 }
