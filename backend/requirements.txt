@@ -1,63 +1,91 @@
-# Sistema Legal CO - Dependencias Python
+# Sistema Legal CO — Dependencias Python
+# CORRECCIONES APLICADAS:
+#   - python-jose → PyJWT (CVEs conocidos en python-jose)
+#   - paddleocr/paddlepaddle → ocrmypdf + pytesseract (más liviano, imagen ~80% menor)
+#   - weasyprint eliminado → PDF export usa LibreOffice headless (ver Dockerfile)
+#   - Agregado: celery + redis (cola de tareas para batch processing)
+#   - Agregado: boto3 (abstracción S3-compatible para storage)
+#   - Agregado: PyMuPDF (reemplaza pypdf)
+#   - Agregado: holidays (festivos colombianos para calculadora de términos)
+#   - Agregado: sentence-transformers (embeddings para ChromaDB)
 
-# FastAPI y servidor
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
+# ─── Web framework ───────────────────────────────────────────────────────────
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
 python-multipart==0.0.12
+websockets==13.1
 
-# Base de datos
-sqlalchemy==2.0.35
-alembic==1.13.3
-psycopg2-binary==2.9.9  # PostgreSQL
+# ─── Base de datos ───────────────────────────────────────────────────────────
+sqlalchemy==2.0.36
+alembic==1.14.0
+aiosqlite==0.20.0
+asyncpg==0.30.0
+psycopg2-binary==2.9.9
+greenlet==3.1.1
 
-# Autenticación
-python-jose[cryptography]==3.3.0
+# ─── Autenticación — PyJWT (reemplaza python-jose) ───────────────────────────
+PyJWT==2.10.0
 passlib[bcrypt]==1.7.4
+cryptography==43.0.3
+# python-jose ELIMINADO — CVEs en 2023-2024, mantenimiento irregular
 
-# LLM
-litellm==1.52.0
+# ─── Cola de tareas ──────────────────────────────────────────────────────────
+celery==5.4.0
+redis==5.2.0
+flower==2.0.1
 
-# Vector store
-chromadb==0.5.5
-pypdf==5.1.0
+# ─── LLM ─────────────────────────────────────────────────────────────────────
+litellm==1.52.5
+httpx==0.27.2
+
+# ─── Vector DB ───────────────────────────────────────────────────────────────
+chromadb==0.5.23
+sentence-transformers==3.3.1
+
+# ─── PDF / OCR ───────────────────────────────────────────────────────────────
+PyMuPDF==1.24.14
 pdfplumber==0.11.4
+ocrmypdf==16.7.0
+pytesseract==0.3.13
+Pillow==11.0.0
+# paddlepaddle + paddleocr COMENTADOS (imagen Docker ~4-6GB, cold start lento)
+# Activar con OCR_ENGINE=paddleocr en .env si se necesitan documentos muy degradados
+# paddlepaddle==2.6.2
+# paddleocr==2.9.1
 
-# OCR
-paddlepaddle==2.6.2
-paddleocr==2.9.1
-
-# Word
+# ─── Word / DOCX ─────────────────────────────────────────────────────────────
 python-docx==1.1.2
+Jinja2==3.1.4
 
-# PDF Export
-weasyprint==62.3
+# ─── PDF Export — LibreOffice headless (instalado en Dockerfile como apt) ────
+# WeasyPrint ELIMINADO: problemas con fuentes Times New Roman en Linux,
+# soporte CSS limitado para NTC 1486. LibreOffice convierte .docx → .pdf
+# preservando el formato exacto. Ver app/modules/drafting/exporter_pdf.py
 
-# Templates
-jinja2==3.1.4
+# ─── NLP / NER ───────────────────────────────────────────────────────────────
+spacy==3.8.3
 
-# NLP
-spacy==3.8.2
-https://github.com/explosion/spacy-models/releases/download/es_core_news_lg-3.8.0/es_core_news_lg-3.8.0-py3-none-any.whl
-
-# Web scraping
-httpx==0.27.2
-beautifulsoup4==4.12.3
-lxml==5.3.0
-
-# Utils
-python-dotenv==1.0.1
-pydantic-settings==2.5.2
-python-dateutil==2.9.0
-numpy==1.26.4
-pillow==10.4.0
-
-# Testing
-pytest==8.3.3
-pytest-asyncio==0.24.0
-httpx==0.27.2
-
-# Rate Limiting
+# ─── Rate limiting ────────────────────────────────────────────────────────────
 slowapi==0.1.9
 
-# Dev
+# ─── Almacenamiento S3-compatible ─────────────────────────────────────────────
+boto3==1.35.80
+
+# ─── Utilidades ───────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
+pydantic==2.10.1
+pydantic-settings==2.6.1
+python-dateutil==2.9.0
+holidays==0.59
+BeautifulSoup4==4.12.3
+lxml==5.3.0
+tenacity==9.0.0
+structlog==24.4.0
+numpy==1.26.4
+
+# ─── Testing ──────────────────────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.24.0
+
+# ─── Dev ──────────────────────────────────────────────────────────────────────
 watchfiles==0.22.0
