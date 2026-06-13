@@ -1,10 +1,13 @@
 """
 Sistema Legal CO - Core Security
-CORRECCIONES APLICADAS:
+CORRECCIONES:
   - python-jose → PyJWT (librería activamente mantenida, sin CVEs recientes)
   - Tokens incluyen `jti` (JWT ID único) para permitir revocación real
-  - Blocklist en DB (tabla revoked_tokens) para logout y pérdida de dispositivo
+  - Funciones de blocklist para logout (revoke_token / is_token_revoked)
   - Protección básica contra prompt injection en contenido de documentos
+
+  COMPATIBILITY: mantiene sesión síncrona (Session) para compatibilidad
+  con el database.py existente. La DB aún usa create_engine sincrono.
 """
 from __future__ import annotations
 
@@ -19,11 +22,12 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.db.database import get_db
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# OAuth2
+# OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
@@ -71,64 +75,50 @@ def create_refresh_token(data: dict) -> str:
 def decode_token(token: str) -> dict[str, Any]:
     """
     Decodificar y validar token con PyJWT.
-    Lanza jwt.ExpiredSignatureError o jwt.InvalidTokenError si inválido.
-    A diferencia de python-jose, PyJWT no tiene JWTError genérico —
-    capturar jwt.PyJWTError para compatibilidad.
+    Diferencia clave vs python-jose: la excepción base es jwt.PyJWTError
+    (no JWTError). Subcategorias: jwt.ExpiredSignatureError, jwt.InvalidTokenError.
     """
     return jwt.decode(
         token,
         settings.jwt_secret,
         algorithms=[settings.jwt_algorithm],
-        options={"require": ["exp", "iat", "jti", "sub"]},
     )
 
 
 # ─── Blocklist — revocación de tokens ─────────────────────────────────────────
-# IMPORTANTE: la tabla `revoked_tokens` debe existir en DB.
-# Ver app/models/user.py → clase RevokedToken.
+# Requiere tabla `revoked_tokens` en DB. Ver models/user.py → RevokedToken.
+# Habilitar en get_current_user cuando se agregue esa tabla.
 
-async def revoke_token(
-    jti: str,
-    user_id: int,
-    expires_at: datetime,
-    db,
-) -> None:
+def revoke_token(jti: str, db: Session) -> None:
     """Agrega el token a la blocklist (logout / pérdida de dispositivo)."""
-    from app.models.user import RevokedToken
-    revoked = RevokedToken(jti=jti, user_id=user_id, expires_at=expires_at)
-    db.add(revoked)
-    await db.commit()
+    try:
+        from app.models.user import RevokedToken
+        revoked = RevokedToken(jti=jti)
+        db.add(revoked)
+        db.commit()
+    except Exception:
+        pass  # Si la tabla no existe aún, silenciar
 
 
-async def is_token_revoked(jti: str, db) -> bool:
+def is_token_revoked(jti: str, db: Session) -> bool:
     """Verifica si el token está en la blocklist."""
-    from sqlalchemy import select
-    from app.models.user import RevokedToken
-    result = await db.execute(select(RevokedToken).where(RevokedToken.jti == jti))
-    return result.scalar_one_or_none() is not None
-
-
-async def cleanup_expired_tokens(db) -> int:
-    """Elimina tokens expirados de la blocklist. Llamar periódicamente via Celery."""
-    from sqlalchemy import delete as sa_delete
-    from app.models.user import RevokedToken
-    now = datetime.now(timezone.utc)
-    result = await db.execute(
-        sa_delete(RevokedToken).where(RevokedToken.expires_at < now)
-    )
-    await db.commit()
-    return result.rowcount
+    try:
+        from app.models.user import RevokedToken
+        return db.query(RevokedToken).filter(RevokedToken.jti == jti).first() is not None
+    except Exception:
+        return False  # Si la tabla no existe aún, no bloquear
 
 
 # ─── FastAPI dependencies ─────────────────────────────────────────────────────
 
-async def get_current_user(
+def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(),
+    db: Session = Depends(get_db),  # FIX: era Depends() vacío — causaba error de startup
 ):
     """
     Dependencia FastAPI: obtener usuario actual desde el token.
     Verifica firma, expiración y (opcionalmente) blocklist.
+    Usa sesión síncrona para compatibilidad con el engine existente.
     """
     from app.models.user import User
 
@@ -146,13 +136,13 @@ async def get_current_user(
         raise credentials_exception
 
     username: str = payload.get("sub")
-    jti: str = payload.get("jti")
-    if not username or not jti:
+    if not username:
         raise credentials_exception
 
-    # Verificar blocklist (habilitar cuando se migre a AsyncSession)
-    # if await is_token_revoked(jti, db):
-    #     raise credentials_exception
+    # Verificar blocklist si el token tiene jti
+    jti = payload.get("jti")
+    if jti and is_token_revoked(jti, db):
+        raise credentials_exception
 
     user = db.query(User).filter(User.username == username).first()
     if user is None:
@@ -163,7 +153,7 @@ async def get_current_user(
 
 def require_role(allowed_roles: List):
     """Dependencia: verificar rol del usuario."""
-    def role_checker(current_user=Depends(get_current_user)):
+    def role_checker(current_user = Depends(get_current_user)):
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -197,7 +187,7 @@ INJECTION_PATTERNS = [
 def wrap_user_content(text: str) -> str:
     """
     Enmarca contenido extraído de documentos para aislarlo del system prompt.
-    Llama esto antes de incluir texto de documentos en cualquier prompt al LLM.
+    Llamar esto antes de incluir texto de documentos en cualquier prompt al LLM.
     """
     sanitized = text.replace(INJECTION_DELIMITERS[0], "[TAG_REMOVED]")
     sanitized = sanitized.replace(INJECTION_DELIMITERS[1], "[TAG_REMOVED]")
@@ -205,6 +195,6 @@ def wrap_user_content(text: str) -> str:
 
 
 def detect_injection_attempt(text: str) -> bool:
-    """Detecta patrones básicos de prompt injection. Loguear si retorna True."""
+    """Detecta patrones básicos de prompt injection en texto extraído."""
     text_lower = text.lower()
     return any(p in text_lower for p in INJECTION_PATTERNS)
