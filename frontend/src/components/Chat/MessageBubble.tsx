@@ -54,14 +54,14 @@ export function MessageBubble({ message }: Props) {
           className={clsx(
             'rounded-2xl px-4 py-3 text-sm',
             isUser
-              ? 'bg-blue-600 text-white rounded-tr-sm'
-              : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
+              ? 'bg-blue-600 dark:bg-blue-700 text-white rounded-tr-sm shadow-md shadow-blue-600/20'
+              : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-sm shadow-sm'
           )}
         >
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
-            <ReactMarkdown className="prose prose-sm max-w-none prose-gray">
+            <ReactMarkdown className="prose prose-sm max-w-none prose-gray dark:prose-invert">
               {message.content}
             </ReactMarkdown>
           )}

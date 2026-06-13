@@ -2,6 +2,9 @@
 Sistema Legal CO - FastAPI Application
 Punto de entrada principal de la API.
 """
+import logging
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -9,8 +12,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
-
-import os
 
 from app.config import settings
 from app.db.database import init_db
@@ -28,17 +29,33 @@ from app.api.routes import (
     timeline
 )
 
+# ─── Logging estructurado ────────────────────────────────────────────────────
+logger = logging.getLogger("sistema-legal")
+logger.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
+
+# Evitar duplicación de handlers en re-imports
+if not logger.handlers:
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+    logger.addHandler(console_handler)
+    logger.propagate = False
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager - startup y shutdown."""
-    # Startup
-    print(f"Iniciando {settings.app_name}...")
+    logger.info("Iniciando %s...", settings.app_name)
     init_db()
-    print("[OK] Base de datos inicializada")
+    logger.info("Base de datos inicializada")
+    logger.debug("Modo debug activado - conexiones DB: pool=%d, overflow=%d",
+                 settings.database_pool_size, settings.database_max_overflow)
     yield
-    # Shutdown
-    print("Apagando sistema...")
+    logger.info("Apagando sistema...")
 
 
 # Rate limiter por IP (deshabilitado en testing para no romper tests)
@@ -89,6 +106,7 @@ app.include_router(timeline.router, prefix="/api/timeline", tags=["Timeline"])
 
 @app.get("/")
 async def root():
+    logger.debug("Health check desde %s", "/")
     return {
         "app": settings.app_name,
         "status": "online",
@@ -99,3 +117,9 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+# ─── Exponer logger para otros módulos ────────────────────────────────────────
+def get_logger(name: str = None) -> logging.Logger:
+    """Obtiene un logger con el nombre del módulo."""
+    return logging.getLogger(f"sistema-legal.{name}") if name else logger

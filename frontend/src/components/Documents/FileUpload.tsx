@@ -134,16 +134,16 @@ export function FileUpload({ caseId, onUploaded }: Props) {
         {...getRootProps()}
         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
           isDragActive
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-gray-300 hover:border-blue-400'
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+            : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600'
         }`}
       >
         <input {...getInputProps()} />
-        <Upload className={`w-10 h-10 mx-auto mb-3 ${isDragActive ? 'text-blue-500' : 'text-gray-400'}`} />
-        <p className="text-sm text-gray-600">
+        <Upload className={`w-10 h-10 mx-auto mb-3 ${isDragActive ? 'text-blue-500' : 'text-gray-400 dark:text-gray-500'}`} />
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           {isDragActive ? 'Suelta los archivos aquí...' : 'Arrastra y suelta archivos, o haz clic para seleccionar'}
         </p>
-        <p className="text-xs text-gray-500 mt-1">PDF, DOCX, PNG, JPG · Máximo 50 MB</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">PDF, DOCX, PNG, JPG · Máximo 50 MB</p>
       </div>
 
       {files.length > 0 && (

@@ -36,7 +36,7 @@ jobs:
           LLM_PROVIDER: ollama
 
   frontend:
-    name: Frontend TypeScript
+    name: Frontend TypeScript + Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -58,6 +58,11 @@ jobs:
         run: |
           cd frontend
           npx tsc --noEmit
+
+      - name: Run tests (vitest)
+        run: |
+          cd frontend
+          npx vitest run --reporter=verbose
 
   docker:
     name: Docker Build

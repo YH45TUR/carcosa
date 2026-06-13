@@ -27,7 +27,7 @@ export function InputArea({ onSend, isLoading, placeholder }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-3 items-end p-4 border-t border-gray-200 bg-white">
+    <form onSubmit={handleSubmit} className="flex gap-3 items-end p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
       <textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -35,7 +35,7 @@ export function InputArea({ onSend, isLoading, placeholder }: Props) {
         placeholder={placeholder ?? 'Escribe tu consulta legal... (Enter para enviar, Shift+Enter para nueva línea)'}
         rows={1}
         disabled={isLoading}
-        className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm min-h-[44px] max-h-32 overflow-y-auto disabled:opacity-50"
+        className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm min-h-[44px] max-h-32 overflow-y-auto disabled:opacity-50 placeholder-gray-400 dark:placeholder-gray-500"
         style={{ height: 'auto' }}
         onInput={(e) => {
           const target = e.currentTarget
@@ -46,7 +46,7 @@ export function InputArea({ onSend, isLoading, placeholder }: Props) {
       <button
         type="submit"
         disabled={!value.trim() || isLoading}
-        className="flex-shrink-0 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        className="flex-shrink-0 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-blue-600/20"
       >
         {isLoading ? (
           <Loader2 className="w-5 h-5 animate-spin" />

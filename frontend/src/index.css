@@ -14,6 +14,24 @@ body {
   min-height: 100vh;
 }
 
+/* Transiciones suaves para cambio de tema */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: ease-out;
+}
+
+/* Excluir animaciones y transformaciones de la transición global */
+.animate-spin,
+.animate-bounce,
+.animate-pulse,
+[style*="transform"],
+svg * {
+  transition-property: none !important;
+}
+
 /* Estilos para documentos legales */
 .legal-document {
   font-family: 'Times New Roman', Times, serif;
@@ -21,7 +39,7 @@ body {
   line-height: 1.5;
 }
 
-/* Scrollbar personalizada */
+/* Scrollbar personalizada - light */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -31,11 +49,36 @@ body {
   background: #f1f5f9;
 }
 
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
 ::-webkit-scrollbar-thumb {
   background: #94a3b8;
   border-radius: 4px;
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Markdown prose en dark mode */
+.dark .prose {
+  --tw-prose-body: #cbd5e1;
+  --tw-prose-headings: #f1f5f9;
+  --tw-prose-links: #60a5fa;
+  --tw-prose-bold: #f1f5f9;
+  --tw-prose-code: #f1f5f9;
+  --tw-prose-pre-bg: #1e293b;
+  --tw-prose-quotes: #cbd5e1;
+  --tw-prose-quote-borders: #475569;
+  --tw-prose-hr: #334155;
 }
