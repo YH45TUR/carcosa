@@ -23,7 +23,7 @@ pypdf==5.1.0
 pdfplumber==0.11.4
 
 # OCR
-paddlepaddle==2.6.1
+paddlepaddle==2.6.2
 paddleocr==2.9.1
 
 # Word
