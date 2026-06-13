@@ -1,63 +1,91 @@
-// Sistema Legal CO - Chat Hook
-import { useState, useCallback } from 'react'
-import { api } from '../services/api'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { ChatWebSocket, chatApi } from '../services/api'
+import { useAuth } from './useAuth'
 import type { ChatMessage } from '../types'
 
 export function useChat(caseId?: number) {
+  const { accessToken } = useAuth()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
+  const wsRef = useRef<ChatWebSocket | null>(null)
 
-  const sendMessage = useCallback(async (content: string, module?: string) => {
-    setIsLoading(true)
-    setError(null)
+  // Intentar WebSocket si hay token
+  useEffect(() => {
+    if (!accessToken) return
 
-    // Agregar mensaje del usuario
-    const userMessage: ChatMessage = {
-      role: 'user',
-      content,
-      timestamp: new Date().toISOString(),
-    }
-    setMessages(prev => [...prev, userMessage])
+    const ws = new ChatWebSocket(accessToken)
+    ws.connect(
+      (data) => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: data.message,
+            module: data.module,
+            data: data.data,
+            timestamp: new Date(),
+          },
+        ])
+        setIsLoading(false)
+      },
+      () => setIsConnected(false),
+      () => setIsConnected(false)
+    )
+    wsRef.current = ws
+    setIsConnected(true)
 
-    try {
-      const response = await api.sendMessage(content, caseId, module)
-      
-      const assistantMessage: ChatMessage = {
-        role: 'assistant',
-        content: response.message,
-        timestamp: new Date().toISOString(),
-        module: response.module,
-        data: response.data,
+    return () => ws.disconnect()
+  }, [accessToken])
+
+  const sendMessage = useCallback(
+    async (content: string, module?: string) => {
+      if (!content.trim()) return
+
+      const userMsg: ChatMessage = {
+        role: 'user',
+        content,
+        timestamp: new Date(),
       }
-      setMessages(prev => [...prev, assistantMessage])
-      
-      return response
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Error al enviar mensaje'
-      setError(errorMessage)
-      
-      const errorMsg: ChatMessage = {
-        role: 'assistant',
-        content: `Error: ${errorMessage}`,
-        timestamp: new Date().toISOString(),
+      setMessages((prev) => [...prev, userMsg])
+      setIsLoading(true)
+
+      // Preferir WebSocket si está conectado
+      if (wsRef.current?.isConnected) {
+        wsRef.current.send(content, caseId, module)
+        return
       }
-      setMessages(prev => [...prev, errorMsg])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [caseId])
 
-  const clearMessages = useCallback(() => {
-    setMessages([])
-    setError(null)
-  }, [])
+      // Fallback REST
+      try {
+        const { data } = await chatApi.send(content, caseId, module)
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: data.message,
+            module: data.module,
+            data: data.data,
+            timestamp: new Date(),
+          },
+        ])
+      } catch (err) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: 'Error al procesar el mensaje. Intenta de nuevo.',
+            timestamp: new Date(),
+          },
+        ])
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [caseId]
+  )
 
-  return {
-    messages,
-    isLoading,
-    error,
-    sendMessage,
-    clearMessages,
-  }
+  const clearMessages = useCallback(() => setMessages([]), [])
+
+  return { messages, isLoading, isConnected, sendMessage, clearMessages }
 }
