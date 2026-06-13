@@ -1,151 +1,128 @@
-// Sistema Legal CO - API Service
-import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
-import type { Token } from '../types'
+import axios, { AxiosError } from 'axios'
+import type { AuthTokens, Case, CaseCreate, ChatResponse } from '../types'
 
-// Vite provides import.meta.env, but tsc may not recognize it
-const API_BASE_URL = 'http://localhost:8000'
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-class ApiClient {
-  private client: AxiosInstance
-  private refreshTokenPromise: Promise<string> | null = null
+export const api = axios.create({
+  baseURL: BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+})
 
-  constructor() {
-    this.client = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+// Inyectar token en cada request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
-    this.client.interceptors.request.use(
-      (config) => this.attachToken(config),
-      (error) => Promise.reject(error)
-    )
-
-    this.client.interceptors.response.use(
-      (response) => response,
-      (error) => this.handleError(error)
-    )
-  }
-
-  private attachToken(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
-    const token = localStorage.getItem('access_token')
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  }
-
-  private async handleError(error: any) {
-    const originalRequest = error.config
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-
-      try {
-        const newToken = await this.refreshAccessToken()
-        originalRequest.headers.Authorization = `Bearer ${newToken}`
-        return this.client(originalRequest)
-      } catch (refreshError) {
-        this.logout()
-        return Promise.reject(refreshError)
+// Refrescar token si expira
+api.interceptors.response.use(
+  (res) => res,
+  async (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      const refreshToken = localStorage.getItem('refresh_token')
+      if (refreshToken) {
+        try {
+          const { data } = await axios.post<AuthTokens>(
+            `${BASE_URL}/api/auth/refresh`,
+            null,
+            { headers: { Authorization: `Bearer ${refreshToken}` } }
+          )
+          localStorage.setItem('access_token', data.access_token)
+          localStorage.setItem('refresh_token', data.refresh_token)
+          if (error.config) {
+            error.config.headers.Authorization = `Bearer ${data.access_token}`
+            return api(error.config)
+          }
+        } catch {
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          window.location.href = '/login'
+        }
       }
     }
-
     return Promise.reject(error)
   }
+)
 
-  private async refreshAccessToken(): Promise<string> {
-    if (this.refreshTokenPromise) {
-      return this.refreshTokenPromise
-    }
+// ─── Auth ────────────────────────────────────────────────────────────────────
 
-    const refreshToken = localStorage.getItem('refresh_token')
-    if (!refreshToken) {
-      throw new Error('No refresh token')
-    }
+export const authApi = {
+  login: (username: string, password: string) =>
+    api.post<AuthTokens>('/api/auth/login', new URLSearchParams({ username, password }), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    }),
 
-    this.refreshTokenPromise = (async () => {
-      try {
-        const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, null, {
-          headers: { Authorization: `Bearer ${refreshToken}` }
-        })
-        const { access_token, refresh_token } = response.data
-        localStorage.setItem('access_token', access_token)
-        localStorage.setItem('refresh_token', refresh_token)
-        return access_token
-      } finally {
-        this.refreshTokenPromise = null
-      }
-    })()
+  register: (data: { username: string; email: string; password: string; role?: string }) =>
+    api.post<AuthTokens>('/api/auth/register', null, { params: data }),
 
-    return this.refreshTokenPromise
-  }
-
-  private logout() {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('user')
-    window.location.href = '/login'
-  }
-
-  // Auth
-  async login(username: string, password: string): Promise<Token> {
-    const formData = new FormData()
-    formData.append('username', username)
-    formData.append('password', password)
-
-    const response = await this.client.post('/api/auth/login', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    return response.data
-  }
-
-  async register(data: { username: string; email: string; password: string; role?: string }): Promise<Token> {
-    const response = await this.client.post('/api/auth/register', data)
-    return response.data
-  }
-
-  async getMe() {
-    const response = await this.client.get('/api/auth/me')
-    return response.data
-  }
-
-  // Cases
-  async getCases(params?: { status?: string; area?: string; cliente?: string; skip?: number; limit?: number }) {
-    const response = await this.client.get('/api/cases', { params })
-    return response.data
-  }
-
-  async getCase(id: number) {
-    const response = await this.client.get(`/api/cases/${id}`)
-    return response.data
-  }
-
-  async createCase(data: any) {
-    const response = await this.client.post('/api/cases', data)
-    return response.data
-  }
-
-  async updateCase(id: number, data: any) {
-    const response = await this.client.put(`/api/cases/${id}`, data)
-    return response.data
-  }
-
-  async deleteCase(id: number) {
-    const response = await this.client.delete(`/api/cases/${id}`)
-    return response.data
-  }
-
-  // Chat
-  async sendMessage(message: string, caseId?: number, module?: string) {
-    const response = await this.client.post('/api/chat/message', {
-      message,
-      case_id: caseId,
-      module
-    })
-    return response.data
-  }
+  me: () => api.get('/api/auth/me'),
 }
 
-export const api = new ApiClient()
+// ─── Cases ───────────────────────────────────────────────────────────────────
+
+export const casesApi = {
+  list: (params?: { status?: string; area?: string; cliente?: string }) =>
+    api.get<Case[]>('/api/cases/', { params }),
+
+  get: (id: number) => api.get<Case>(`/api/cases/${id}`),
+
+  create: (data: CaseCreate) => api.post<Case>('/api/cases/', data),
+
+  update: (id: number, data: Partial<CaseCreate>) => api.put<Case>(`/api/cases/${id}`, data),
+
+  delete: (id: number) => api.delete(`/api/cases/${id}`),
+}
+
+// ─── Chat REST ───────────────────────────────────────────────────────────────
+
+export const chatApi = {
+  send: (message: string, caseId?: number, module?: string) =>
+    api.post<ChatResponse>('/api/chat/message', { message, case_id: caseId, module }),
+}
+
+// ─── Chat WebSocket ──────────────────────────────────────────────────────────
+
+export class ChatWebSocket {
+  private ws: WebSocket | null = null
+  private url: string
+
+  constructor(token: string) {
+    const wsBase = BASE_URL.replace('http', 'ws')
+    this.url = `${wsBase}/api/chat/ws?token=${token}`
+  }
+
+  connect(
+    onMessage: (data: ChatResponse) => void,
+    onClose?: () => void,
+    onError?: () => void
+  ) {
+    this.ws = new WebSocket(this.url)
+
+    this.ws.onmessage = (event) => {
+      try {
+        onMessage(JSON.parse(event.data))
+      } catch { /* ignore parse errors */ }
+    }
+
+    this.ws.onclose = () => onClose?.()
+    this.ws.onerror = () => onError?.()
+
+    return this
+  }
+
+  send(message: string, caseId?: number, module?: string) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ message, case_id: caseId, module }))
+    }
+  }
+
+  disconnect() {
+    this.ws?.close()
+    this.ws = null
+  }
+
+  get isConnected() {
+    return this.ws?.readyState === WebSocket.OPEN
+  }
+}
