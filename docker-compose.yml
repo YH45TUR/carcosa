@@ -1,8 +1,14 @@
-# Sistema Legal CO - Docker Compose
-version: '3.8'
+# Sistema Legal CO - Docker Compose (desarrollo)
+# CORRECCIONES:
+#   - Agregado servicio redis (requerido por Celery)
+#   - Agregado servicio worker (Celery — batch OCR/NER/vectorización)
+#   - Agregado servicio flower (monitor en http://localhost:5555)
+#   - DATABASE_URL corregido: sqlite+aiosqlite:// para SQLAlchemy async
+#   - STORAGE_BACKEND: abstracción local/S3
+
+version: '3.9'
 
 services:
-  # Backend FastAPI
   backend:
     build:
       context: ./backend
@@ -11,14 +17,66 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./data:/app/data
+      - ./data:/data
     environment:
-      - DATABASE_URL=sqlite:///./sistema_legal.db
+      # CORRECCIÓN: sqlite+aiosqlite para SQLAlchemy async
+      - DATABASE_URL=sqlite+aiosqlite:////data/sistema_legal.db
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_BACKEND=local
+      - STORAGE_LOCAL_PATH=/data/uploads
+      - CHROMA_PATH=/data/chroma
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_CAMBIAR_en_produccion}
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - redis
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Cola de tareas — procesa OCR/NER/vectorización en background
+  # Sin esto, un expediente de 500 folios bloquea el servidor principal
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+      - ./data:/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////data/sistema_legal.db
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_BACKEND=local
+      - STORAGE_LOCAL_PATH=/data/uploads
+      - CHROMA_PATH=/data/chroma
       - LLM_PROVIDER=ollama
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
     env_file:
       - ./backend/.env
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - redis
+    command: celery -A app.core.tasks worker --loglevel=info --concurrency=2
+
+  # Monitor de tareas Celery — http://localhost:5555
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    command: celery -A app.core.tasks flower --port=5555
+
+  # Redis — broker para Celery
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   # Frontend React + Vite
   frontend:
@@ -28,13 +86,14 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./frontend/src:/app/src
     environment:
       - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
     command: npm run dev
 
-  # Ollama (opcional - si se usa local)
+  # Ollama (opcional — activar con: docker-compose --profile llm up)
   ollama:
     image: ollama/ollama:latest
     ports:
@@ -45,6 +104,7 @@ services:
       - llm
 
 volumes:
+  redis_data:
   ollama_data:
 
 networks:
