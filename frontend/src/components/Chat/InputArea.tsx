@@ -1,5 +1,4 @@
-// Sistema Legal CO - Chat Input Area
-import { useState, useRef, useEffect } from 'react'
+import { useState, type KeyboardEvent, type FormEvent } from 'react'
 import { Send, Loader2 } from 'lucide-react'
 
 interface Props {
@@ -9,59 +8,52 @@ interface Props {
 }
 
 export function InputArea({ onSend, isLoading, placeholder }: Props) {
-  const [input, setInput] = useState('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [value, setValue] = useState('')
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px'
-    }
-  }, [input])
-
-  const handleSubmit = (e?: React.FormEvent) => {
-    e?.preventDefault()
-    if (!input.trim() || isLoading) return
-
-    onSend(input.trim())
-    setInput('')
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!value.trim() || isLoading) return
+    onSend(value.trim())
+    setValue('')
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSubmit()
+      if (!value.trim() || isLoading) return
+      onSend(value.trim())
+      setValue('')
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-      <div className="flex items-end gap-3 max-w-4xl mx-auto">
-        <div className="flex-1 relative">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder || 'Escribe tu mensaje... (Enter para enviar, Shift+Enter para nueva línea)'}
-            rows={1}
-            className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-legal-500 focus:border-transparent resize-none text-sm max-h-[200px]"
-            disabled={isLoading}
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={!input.trim() || isLoading}
-          className="shrink-0 px-4 py-3 bg-legal-600 text-white rounded-xl hover:bg-legal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Send className="w-5 h-5" />
-          )}
-        </button>
-      </div>
+    <form onSubmit={handleSubmit} className="flex gap-3 items-end p-4 border-t border-gray-200 bg-white">
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder ?? 'Escribe tu consulta legal... (Enter para enviar, Shift+Enter para nueva línea)'}
+        rows={1}
+        disabled={isLoading}
+        className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm min-h-[44px] max-h-32 overflow-y-auto disabled:opacity-50"
+        style={{ height: 'auto' }}
+        onInput={(e) => {
+          const target = e.currentTarget
+          target.style.height = 'auto'
+          target.style.height = Math.min(target.scrollHeight, 128) + 'px'
+        }}
+      />
+      <button
+        type="submit"
+        disabled={!value.trim() || isLoading}
+        className="flex-shrink-0 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+      >
+        {isLoading ? (
+          <Loader2 className="w-5 h-5 animate-spin" />
+        ) : (
+          <Send className="w-5 h-5" />
+        )}
+      </button>
     </form>
   )
 }
